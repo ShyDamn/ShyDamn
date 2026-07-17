@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Flappy Bird contribution graph generator.
- * Each week of GitHub contributions = a pipe pair; gap height reflects activity.
- * Outputs dist/flappy-light.svg and dist/flappy-dark.svg.
+ * Synapsea-style Flappy Bird contribution graph (matches synapsea-landing 404 game).
+ * Each GitHub contribution week = a gate; gap height reflects weekly activity.
+ * Outputs dist/flappy-dark.svg and dist/flappy-light.svg.
  *
  * Env: GITHUB_TOKEN (required), GH_LOGIN (defaults to ShyDamn)
  */
@@ -17,17 +17,66 @@ if (!TOKEN) {
   process.exit(1);
 }
 
+// Canvas geometry — 16:10 feel, compact for profile README
 const W = 1000;
 const H = 320;
-const GROUND_Y = 276;
-const SKY_TOP = 20;
-const PIPE_W = 52;
-const PIPE_SPACING = 108;
-const FIRST_PIPE_X = 420;
-const BIRD_X = 165;
-const GAP_HALF = 48;
-const SPEED = 145;
+const GROUND_RATIO = 0.08;
+const BIRD_X_RATIO = 0.22;
+const BIRD_R_RATIO = 0.028;
+const BIRD_R_MIN = 10;
+const BIRD_R_MAX = 16;
+
+// Physics — same tuning as NotFoundGame.tsx
+const GRAVITY = 1450;
+const FLAP_V = -430;
+const MAX_FALL_V = 620;
+const GATE_V = 195;
+const GROUND_SCROLL = GATE_V;
+const PIPE_WIDTH = 46;
+const PIPE_CAP_HEIGHT = 16;
+const PIPE_CAP_OVERHANG = 4;
+const PIPE_SPACING = 102;
+const FIRST_PIPE_AHEAD = 210;
+
 const R = (n) => Math.round(n * 100) / 100;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const lerp = (a, b, t) => a + (b - a) * clamp(t, 0, 1);
+const COLORS = {
+  pipeBody: "#172543",
+  pipeHi: "rgba(255, 255, 255, 0.08)",
+  pipeStroke: "rgba(34, 211, 238, 0.25)",
+  pipeCapAccent: "rgba(34, 211, 238, 0.55)",
+  groundLine: ["rgba(139, 92, 246, 0)", "rgba(34, 211, 238, 0.8)", "rgba(139, 92, 246, 0)"],
+  groundTop: "#0A0F1E",
+  groundBottom: "#05060F",
+  chevron: "rgba(34, 211, 238, 0.18)",
+  birdGrad: ["#67E8F9", "#22D3EE", "#8B5CF6"],
+  birdHalo: ["rgba(34, 211, 238, 0.45)", "rgba(34, 211, 238, 0)"],
+  birdEye: "#05060F",
+  birdEyeHi: "#F8FAFC",
+  birdWing: "rgba(5, 6, 15, 0.35)",
+  score: "#F8FAFC",
+  scoreShadow: "rgba(5, 6, 15, 0.9)",
+};
+
+const THEMES = {
+  dark: {
+    sky: ["#050814", "#0A0F1E", "#0F1A38"],
+    glowCyan: "rgba(34, 211, 238, 0.14)",
+    glowViolet: "rgba(139, 92, 246, 0.12)",
+    frameBorder: "rgba(34, 211, 238, 0.22)",
+    frameBg: "#0A0F1E",
+    caption: "rgba(248, 250, 252, 0.72)",
+  },
+  light: {
+    sky: ["#E0F2FE", "#BAE6FD", "#7DD3FC"],
+    glowCyan: "rgba(34, 211, 238, 0.22)",
+    glowViolet: "rgba(139, 92, 246, 0.16)",
+    frameBorder: "rgba(79, 70, 229, 0.28)",
+    frameBg: "#F0F9FF",
+    caption: "rgba(15, 23, 42, 0.65)",
+  },
+};
 
 async function fetchWeeks() {
   const query = `query($login:String!){
@@ -45,7 +94,7 @@ async function fetchWeeks() {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       "Content-Type": "application/json",
-      "User-Agent": "flappy-contrib-graph",
+      "User-Agent": "synapsea-flappy-contrib",
     },
     body: JSON.stringify({ query, variables: { login: LOGIN } }),
   });
@@ -69,284 +118,305 @@ function mulberry(seed) {
   };
 }
 
-function buildScene(weeks) {
+function buildGates(weeks, playY) {
   const rnd = mulberry(1337);
   const max = Math.max(1, ...weeks);
-  const minGapY = SKY_TOP + GAP_HALF + 22;
-  const maxGapY = GROUND_Y - GAP_HALF - 22;
+  const easy = Math.min(120, playY * 0.42);
+  const hard = Math.min(88, Math.max(72, playY * 0.26));
+  const margin = Math.max(28, playY * 0.08);
 
-  const pipes = weeks.map((count, i) => {
+  return weeks.map((count, i) => {
     const norm = Math.sqrt(count / max);
-    let gapY = maxGapY - norm * (maxGapY - minGapY);
-    gapY += (rnd() - 0.5) * 28;
-    gapY = Math.min(maxGapY, Math.max(minGapY, gapY));
-    return { x: FIRST_PIPE_X + i * PIPE_SPACING, gapY: R(gapY), count };
+    const difficulty = norm * 0.85;
+    const gapH = Math.max(72, lerp(easy, hard, difficulty));
+    const span = Math.max(36, playY - gapH - margin * 2);
+    let gapY = margin + (1 - norm) * span;
+    gapY += (rnd() - 0.5) * span * 0.12;
+    gapY = clamp(gapY, margin, playY - gapH - margin);
+    return {
+      x0: W * BIRD_X_RATIO + FIRST_PIPE_AHEAD + i * PIPE_SPACING,
+      w: PIPE_WIDTH,
+      gapY: R(gapY),
+      gapH: R(gapH),
+      seed: rnd(),
+    };
   });
-
-  const worldShift = pipes[pipes.length - 1].x + 280;
-  const T = R(worldShift / SPEED);
-  return { pipes, worldShift, T };
 }
 
-function birdKeyframes(pipes, T) {
-  const pts = [{ t: 0, y: 158, rot: -8 }];
-  let prevY = 158;
-  let prevT = 0;
+function simulate(gates, playY) {
+  const birdX = W * BIRD_X_RATIO;
+  const birdR = clamp(H * BIRD_R_RATIO, BIRD_R_MIN, BIRD_R_MAX);
+  const worldShift = gates[gates.length - 1].x0 + 280;
+  const duration = worldShift / GATE_V;
 
-  for (const p of pipes) {
-    const t = (p.x - BIRD_X) / SPEED;
-    if (t <= prevT + 0.04) continue;
-    const midT = (prevT + t) / 2;
-    const hopY = Math.max(SKY_TOP + 18, Math.min(prevY, p.gapY) - 38);
-    pts.push({ t: midT, y: hopY, rot: -28 });
-    pts.push({ t, y: p.gapY, rot: 18 });
-    prevY = p.gapY;
-    prevT = t;
+  let t = 0;
+  const dt = 1 / 60;
+  let py = playY * 0.4;
+  let vy = FLAP_V * 0.6;
+  let rot = 0;
+  let groundOffset = 0;
+  let bgOffset = 0;
+  const raw = [{ t: 0, y: py, rot: 0, groundOffset: 0, bgOffset: 0 }];
+
+  while (t < duration) {
+    for (const g of gates) {
+      const px = g.x0 - GATE_V * t;
+      const gapCenter = g.gapY + g.gapH / 2;
+      const ahead = px - birdX;
+      if (ahead > 0 && ahead < 115 && py > gapCenter - 18) vy = FLAP_V;
+    }
+
+    vy = Math.min(vy + GRAVITY * dt, MAX_FALL_V);
+    py += vy * dt;
+
+    if (py - birdR < 0) {
+      py = birdR;
+      vy = Math.max(vy, 40);
+    }
+    if (py + birdR >= playY - 2) {
+      py = playY - birdR - 2;
+      vy = FLAP_V * 0.85;
+    }
+
+    const targetRot = clamp(vy / 400, -0.45, 1.4);
+    rot += (targetRot - rot) * Math.min(1, dt * 10);
+
+    t += dt;
+    groundOffset = (groundOffset + GROUND_SCROLL * dt) % 32;
+    bgOffset = (bgOffset + GROUND_SCROLL * 0.35 * dt) % 60;
+
+    raw.push({ t, y: py, rot, groundOffset, bgOffset });
   }
-  pts.push({ t: T, y: prevY, rot: 4 });
 
-  const keyTimes = pts.map((p) => R(Math.min(1, p.t / T)));
+  const maxKeys = 48;
+  const step = Math.max(1, Math.floor(raw.length / maxKeys));
+  const samples = raw.filter((_, i) => i % step === 0 || i === raw.length - 1);
+
+  const keyTimes = samples.map((s) => R(s.t / duration));
   for (let i = 1; i < keyTimes.length; i++) {
-    if (keyTimes[i] <= keyTimes[i - 1]) keyTimes[i] = R(keyTimes[i - 1] + 0.0005);
+    if (keyTimes[i] <= keyTimes[i - 1]) keyTimes[i] = R(keyTimes[i - 1] + 0.001);
   }
   keyTimes[keyTimes.length - 1] = 1;
 
   return {
+    birdX,
+    birdR,
+    worldShift: R(worldShift),
+    duration: R(duration),
+    samples,
     keyTimes: keyTimes.join(";"),
-    ys: pts.map((p) => `${BIRD_X} ${R(p.y)}`).join(";"),
-    rots: pts.map((p) => p.rot).join(";"),
+    birdYs: samples.map((s) => `${birdX} ${R(s.y)}`).join(";"),
+    birdRots: samples.map((s) => R(s.rot * (180 / Math.PI))).join(";"),
+    groundOffsets: samples.map((s) => R(-s.groundOffset)).join(";"),
+    bgOffsets: samples.map((s) => R(-s.bgOffset)).join(";"),
   };
 }
 
-const THEMES = {
-  light: {
-    sky: "#4EC0CA",
-    skyBottom: "#71D4DE",
-    pipe: "#73BF2E",
-    pipeDark: "#558C22",
-    pipeLight: "#A8E063",
-    pipeRim: "#558C22",
-    ground: "#DED895",
-    groundStripe: "#C9B458",
-    grass: "#8BC34A",
-    bird: "#F8D030",
-    birdDark: "#C9A000",
-    wing: "#F0E8A0",
-    beak: "#F07020",
-    cloud: "#FFFFFF",
-    building: "#6BB6C0",
-    buildingDark: "#4FA4B0",
-    text: "#FFFFFF",
-    textStroke: "#558C22",
-    stars: false,
-  },
-  dark: {
-    sky: "#0F1226",
-    skyBottom: "#1B1E3E",
-    pipe: "#4F46E5",
-    pipeDark: "#3730A3",
-    pipeLight: "#8B5CF6",
-    pipeRim: "#312E81",
-    ground: "#161936",
-    groundStripe: "#2A2D55",
-    grass: "#4F46E5",
-    bird: "#F8D030",
-    birdDark: "#C9A000",
-    wing: "#F0E8A0",
-    beak: "#F07020",
-    cloud: "#2A2D55",
-    building: "#252849",
-    buildingDark: "#1A1D38",
-    text: "#E5E7EB",
-    textStroke: "#3730A3",
-    stars: true,
-  },
-};
-
-function pipeSvg(p, c) {
-  const topH = R(p.gapY - GAP_HALF);
-  const botY = R(p.gapY + GAP_HALF);
-  const lip = 14;
-  const lipOver = 5;
-  const bodyW = PIPE_W;
-  const x = p.x;
-
-  return [
-    `<g>`,
-    `<rect x="${x}" y="0" width="${bodyW}" height="${topH - lip}" fill="${c.pipe}" stroke="${c.pipeDark}" stroke-width="2"/>`,
-    `<rect x="${x + 6}" y="0" width="10" height="${topH - lip}" fill="${c.pipeLight}" opacity="0.55"/>`,
-    `<rect x="${x - lipOver}" y="${topH - lip}" width="${bodyW + lipOver * 2}" height="${lip}" rx="2" fill="${c.pipe}" stroke="${c.pipeRim}" stroke-width="2"/>`,
-    `<rect x="${x - lipOver + 4}" y="${topH - lip + 3}" width="${bodyW + lipOver * 2 - 8}" height="4" fill="${c.pipeLight}" opacity="0.45"/>`,
-    `<rect x="${x - lipOver}" y="${botY}" width="${bodyW + lipOver * 2}" height="${lip}" rx="2" fill="${c.pipe}" stroke="${c.pipeRim}" stroke-width="2"/>`,
-    `<rect x="${x - lipOver + 4}" y="${botY + 3}" width="${bodyW + lipOver * 2 - 8}" height="4" fill="${c.pipeLight}" opacity="0.45"/>`,
-    `<rect x="${x}" y="${botY + lip}" width="${bodyW}" height="${R(GROUND_Y - botY - lip)}" fill="${c.pipe}" stroke="${c.pipeDark}" stroke-width="2"/>`,
-    `<rect x="${x + 6}" y="${botY + lip}" width="10" height="${R(GROUND_Y - botY - lip)}" fill="${c.pipeLight}" opacity="0.55"/>`,
-    `</g>`,
-  ].join("\n");
-}
-
-function skylineSvg(c, worldShift) {
-  const rnd = mulberry(9001);
-  const buildings = [];
-  let x = -40;
-  while (x < worldShift + W + 80) {
-    const bw = 28 + Math.floor(rnd() * 36);
-    const bh = 28 + Math.floor(rnd() * 72);
-    buildings.push({ x, w: bw, h: bh, windows: rnd() > 0.35 });
-    x += bw + 6 + Math.floor(rnd() * 14);
-  }
-
-  const parts = [`<g opacity="0.55">`];
-  for (const b of buildings) {
+function starsSvg(playY, offsetValues, keyTimes, duration, themeKey) {
+  const alphaScale = themeKey === "dark" ? 1 : 0.35;
+  const parts = [];
+  for (let i = 0; i < 40; i++) {
+    const seed = i * 37.17;
+    const baseX = (seed * 13) % W;
+    const y = R(((seed * 7) % playY) * 0.95);
+    const x = R(baseX);
+    const size = R(1 + ((i * 11) % 3) * 0.4);
+    const alpha = R((0.25 + ((i * 19) % 100) / 260) * alphaScale);
     parts.push(
-      `<rect x="${b.x}" y="${GROUND_Y - b.h}" width="${b.w}" height="${b.h}" fill="${c.building}" stroke="${c.buildingDark}" stroke-width="1"/>`
+      `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="rgba(248,250,252,${alpha})"/>`
     );
-    if (b.windows) {
-      for (let wy = GROUND_Y - b.h + 10; wy < GROUND_Y - 12; wy += 14) {
-        for (let wx = b.x + 6; wx < b.x + b.w - 8; wx += 10) {
-          if (rnd() > 0.25) {
-            parts.push(
-              `<rect x="${wx}" y="${wy}" width="5" height="7" fill="${c.buildingDark}" opacity="0.7"/>`
-            );
-          }
-        }
-      }
-    }
   }
-  parts.push(`</g>`);
-  return parts.join("\n");
+  const translateValues = offsetValues
+    .split(";")
+    .map((ox) => `${ox} 0`)
+    .join(";");
+  return `<g><animateTransform attributeName="transform" type="translate" values="${translateValues}" keyTimes="${keyTimes}" dur="${duration}s" repeatCount="indefinite" calcMode="linear"/>${parts.join("")}</g>`;
 }
 
-function birdSvg(c) {
+function pipeBody(x, y, w, h) {
+  if (h <= 0) return "";
   return [
-    `<g>`,
-    `<rect x="-14" y="-12" width="26" height="24" rx="6" fill="${c.bird}" stroke="${c.birdDark}" stroke-width="2"/>`,
-    `<g>`,
-    `<animateTransform attributeName="transform" type="rotate" values="-30 -6 2;22 -6 2;-30 -6 2" dur="0.26s" repeatCount="indefinite"/>`,
-    `<ellipse cx="-6" cy="3" rx="8" ry="5" fill="${c.wing}" stroke="${c.birdDark}" stroke-width="1.5"/>`,
-    `</g>`,
-    `<circle cx="6" cy="-5" r="5" fill="#FFFFFF" stroke="${c.birdDark}" stroke-width="1.5"/>`,
-    `<circle cx="7.5" cy="-5" r="2.2" fill="#1F2937"/>`,
-    `<path d="M 11 2 L 22 4 L 11 9 Z" fill="${c.beak}" stroke="${c.birdDark}" stroke-width="1"/>`,
-    `</g>`,
-  ].join("\n");
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${COLORS.pipeBody}"/>`,
+    `<rect x="${x + 3}" y="${y}" width="3" height="${h}" fill="${COLORS.pipeHi}"/>`,
+    `<rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" fill="none" stroke="${COLORS.pipeStroke}" stroke-width="1"/>`,
+  ].join("");
 }
 
-function render(theme, scene, total) {
-  const c = THEMES[theme];
-  const { pipes, worldShift, T } = scene;
-  const bird = birdKeyframes(pipes, T);
+function pipeCap(x, y, w, h, uid) {
+  return [
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${COLORS.pipeBody}"/>`,
+    `<rect x="${x}" y="${y}" width="${w}" height="3" fill="url(#cap-${uid})"/>`,
+    `<rect x="${x + 4}" y="${y + 3}" width="3" height="${Math.max(0, h - 5)}" fill="${COLORS.pipeHi}"/>`,
+    `<rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" fill="none" stroke="${COLORS.pipeCapAccent}" stroke-width="1"/>`,
+  ].join("");
+}
+
+function gateSvg(g, playY, uid) {
+  const capW = g.w + PIPE_CAP_OVERHANG * 2;
+  const capX = g.x0 - PIPE_CAP_OVERHANG;
   const parts = [];
 
-  parts.push(
+  if (g.gapY > 0) {
+    const bodyBottom = g.gapY - PIPE_CAP_HEIGHT;
+    if (bodyBottom > 0) parts.push(pipeBody(g.x0, 0, g.w, bodyBottom));
+    parts.push(pipeCap(capX, Math.max(0, g.gapY - PIPE_CAP_HEIGHT), capW, PIPE_CAP_HEIGHT, uid));
+  }
+
+  const bottomTop = g.gapY + g.gapH;
+  const bottomH = playY - bottomTop;
+  if (bottomH > 0) {
+    parts.push(pipeCap(capX, bottomTop, capW, PIPE_CAP_HEIGHT, uid));
+    const bodyStart = bottomTop + PIPE_CAP_HEIGHT;
+    if (playY - bodyStart > 0) parts.push(pipeBody(g.x0, bodyStart, g.w, playY - bodyStart));
+  }
+
+  return parts.join("");
+}
+
+function groundSvg(playY, groundOffsetValues, keyTimes, duration) {
+  const chevrons = [];
+  for (let x = -32; x < W + 64; x += 32) {
+    chevrons.push(
+      `<path d="M ${x} ${H - 8} L ${x + 16} ${H - 20} L ${x + 32} ${H - 8}" fill="none" stroke="${COLORS.chevron}" stroke-width="2"/>`
+    );
+  }
+
+  return [
+    `<defs>`,
+    `<linearGradient id="ground-line" x1="0" y1="0" x2="1" y2="0">`,
+    `<stop offset="0" stop-color="${COLORS.groundLine[0]}"/>`,
+    `<stop offset="0.5" stop-color="${COLORS.groundLine[1]}"/>`,
+    `<stop offset="1" stop-color="${COLORS.groundLine[2]}"/>`,
+    `</linearGradient>`,
+    `<linearGradient id="ground-fill" x1="0" y1="0" x2="0" y2="1">`,
+    `<stop offset="0" stop-color="${COLORS.groundTop}"/>`,
+    `<stop offset="1" stop-color="${COLORS.groundBottom}"/>`,
+    `</linearGradient>`,
+    `</defs>`,
+    `<rect x="0" y="${playY}" width="${W}" height="2" fill="url(#ground-line)"/>`,
+    `<rect x="0" y="${playY + 2}" width="${W}" height="${H - playY - 2}" fill="url(#ground-fill)"/>`,
+    `<g>`,
+    `<animateTransform attributeName="transform" type="translate" values="${groundOffsetValues.split(";").map((v) => `${v} 0`).join(";")}" keyTimes="${keyTimes}" dur="${duration}s" repeatCount="indefinite" calcMode="linear"/>`,
+    chevrons.join(""),
+    `</g>`,
+  ].join("");
+}
+
+function birdSvg(birdR, uid) {
+  const r = birdR;
+  return [
+    `<circle cx="0" cy="0" r="${R(r * 3)}" fill="url(#halo-${uid})"/>`,
+    `<circle cx="0" cy="0" r="${r}" fill="url(#bird-${uid})" filter="url(#glow-${uid})"/>`,
+    `<circle cx="0" cy="0" r="${R(r + 2)}" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="1.5">`,
+    `<animate attributeName="r" values="${R(r + 1)};${R(r + 3)};${R(r + 1)}" dur="2s" repeatCount="indefinite"/>`,
+    `</circle>`,
+    `<ellipse cx="${R(-r * 0.25)}" cy="${R(r * 0.1)}" rx="${R(r * 0.5)}" ry="${R(r * 0.3)}" fill="${COLORS.birdWing}">`,
+    `<animate attributeName="ry" values="${R(r * 0.3)};${R(r * 0.18)};${R(r * 0.3)}" dur="0.55s" repeatCount="indefinite"/>`,
+    `</ellipse>`,
+    `<circle cx="${R(r * 0.35)}" cy="${R(-r * 0.25)}" r="${R(r * 0.2)}" fill="${COLORS.birdEye}"/>`,
+    `<circle cx="${R(r * 0.42)}" cy="${R(-r * 0.32)}" r="${R(r * 0.07)}" fill="${COLORS.birdEyeHi}"/>`,
+  ].join("");
+}
+
+function scoreSvg(gates, sim, birdX) {
+  const parts = [];
+  for (let i = 0; i < gates.length; i++) {
+    const passT = (gates[i].x0 - birdX) / GATE_V;
+    const begin = clamp(passT / sim.duration, 0.001, 0.999);
+    const end =
+      i + 1 < gates.length
+        ? clamp((gates[i + 1].x0 - birdX) / GATE_V / sim.duration, begin + 0.001, 0.9995)
+        : 1;
+    parts.push(
+      `<text x="${W / 2}" y="34" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-size="28" font-weight="700" fill="${COLORS.score}" opacity="0">${i + 1}` +
+        `<animate attributeName="opacity" values="0;1;0" keyTimes="0;${R(begin)};${R(end)}" calcMode="discrete" dur="${sim.duration}s" repeatCount="indefinite"/></text>`
+    );
+  }
+  return parts.join("");
+}
+
+function render(themeKey, gates, sim, total) {
+  const theme = THEMES[themeKey];
+  const uid = themeKey;
+  const groundH = Math.max(26, Math.round(H * GROUND_RATIO));
+  const playY = H - groundH;
+  const { duration, keyTimes, worldShift } = sim;
+
+  const bgOffsetValues = sim.samples.map((s) => R(-s.bgOffset)).join(";");
+  const groundOffsetValues = sim.samples.map((s) => R(-s.groundOffset)).join(";");
+
+  const parts = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`,
     `<defs>`,
-    `<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">`,
-    `<stop offset="0" stop-color="${c.sky}"/><stop offset="1" stop-color="${c.skyBottom}"/>`,
+    `<linearGradient id="sky-${uid}" x1="0" y1="0" x2="0" y2="1">`,
+    `<stop offset="0" stop-color="${theme.sky[0]}"/>`,
+    `<stop offset="0.55" stop-color="${theme.sky[1]}"/>`,
+    `<stop offset="1" stop-color="${theme.sky[2]}"/>`,
     `</linearGradient>`,
-    `<clipPath id="frame"><rect x="0" y="0" width="${W}" height="${H}" rx="10"/></clipPath>`,
+    `<radialGradient id="glow-c-${uid}" cx="25%" cy="25%" r="70%">`,
+    `<stop offset="0" stop-color="${theme.glowCyan}"/><stop offset="1" stop-color="rgba(34,211,238,0)"/>`,
+    `</radialGradient>`,
+    `<radialGradient id="glow-v-${uid}" cx="80%" cy="70%" r="65%">`,
+    `<stop offset="0" stop-color="${theme.glowViolet}"/><stop offset="1" stop-color="rgba(139,92,246,0)"/>`,
+    `</radialGradient>`,
+    `<linearGradient id="cap-${uid}" x1="0" y1="0" x2="1" y2="0">`,
+    `<stop offset="0" stop-color="rgba(139,92,246,0.5)"/>`,
+    `<stop offset="0.5" stop-color="rgba(34,211,238,0.7)"/>`,
+    `<stop offset="1" stop-color="rgba(139,92,246,0.5)"/>`,
+    `</linearGradient>`,
+    `<linearGradient id="bird-${uid}" x1="0%" y1="0%" x2="100%" y2="100%">`,
+    `<stop offset="0%" stop-color="${COLORS.birdGrad[0]}"/>`,
+    `<stop offset="50%" stop-color="${COLORS.birdGrad[1]}"/>`,
+    `<stop offset="100%" stop-color="${COLORS.birdGrad[2]}"/>`,
+    `</linearGradient>`,
+    `<radialGradient id="halo-${uid}" cx="50%" cy="50%" r="50%">`,
+    `<stop offset="0%" stop-color="${COLORS.birdHalo[0]}"/>`,
+    `<stop offset="100%" stop-color="${COLORS.birdHalo[1]}"/>`,
+    `</radialGradient>`,
+    `<filter id="glow-${uid}" x="-80%" y="-80%" width="260%" height="260%">`,
+    `<feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="rgba(34,211,238,0.4)"/>`,
+    `</filter>`,
+    `<clipPath id="frame-${uid}"><rect x="1" y="1" width="${W - 2}" height="${H - 2}" rx="18"/></clipPath>`,
     `</defs>`,
-    `<g clip-path="url(#frame)">`,
-    `<rect width="${W}" height="${H}" fill="url(#sky)"/>`
-  );
-
-  if (c.stars) {
-    parts.push(
-      `<circle cx="860" cy="48" r="22" fill="#FDE68A" opacity="0.9"/>`,
-      `<circle cx="848" cy="48" r="18" fill="${c.sky}" opacity="0.35"/>`
-    );
-    const rnd = mulberry(42);
-    for (let i = 0; i < 45; i++) {
-      const x = R(rnd() * W);
-      const y = R(rnd() * (GROUND_Y - 70));
-      const r = R(0.5 + rnd() * 1.4);
-      const dur = R(1.4 + rnd() * 2.8);
-      parts.push(
-        `<circle cx="${x}" cy="${y}" r="${r}" fill="#E5E7EB" opacity="0.75">` +
-          `<animate attributeName="opacity" values="0.1;0.85;0.1" dur="${dur}s" repeatCount="indefinite"/></circle>`
-      );
-    }
-  } else {
-    const clouds = [
-      [90, 55, 1],
-      [360, 38, 0.85],
-      [620, 68, 1],
-      [880, 44, 0.9],
-    ];
-    for (const [x, y, s] of clouds) {
-      parts.push(
-        `<g fill="${c.cloud}" opacity="${s}">` +
-          `<ellipse cx="${x}" cy="${y}" rx="44" ry="15"/>` +
-          `<ellipse cx="${x + 28}" cy="${y - 9}" rx="28" ry="14"/>` +
-          `<ellipse cx="${x - 28}" cy="${y - 7}" rx="24" ry="12"/></g>`
-      );
-    }
-  }
-
-  const skylineShift = R(worldShift * 0.35);
-  parts.push(
+    `<rect x="0.5" y="0.5" width="${W - 1}" height="${H - 1}" rx="18" fill="${theme.frameBg}" stroke="${theme.frameBorder}" stroke-width="1"/>`,
+    `<g clip-path="url(#frame-${uid})">`,
+    `<rect width="${W}" height="${H}" fill="url(#sky-${uid})"/>`,
+    starsSvg(playY, bgOffsetValues, keyTimes, duration, themeKey),
+    `<rect width="${W}" height="${playY}" fill="url(#glow-c-${uid})"/>`,
+    `<rect width="${W}" height="${playY}" fill="url(#glow-v-${uid})"/>`,
     `<g>`,
-    `<animateTransform attributeName="transform" type="translate" from="0 0" to="-${skylineShift} 0" dur="${T}s" repeatCount="indefinite"/>`,
-    skylineSvg(c, skylineShift + W)
-  );
-  parts.push(`</g>`);
-
-  parts.push(
+    `<animateTransform attributeName="transform" type="translate" from="0 0" to="-${worldShift} 0" dur="${duration}s" repeatCount="indefinite"/>`,
+    gates.map((g) => gateSvg(g, playY, uid)).join(""),
+    `</g>`,
+    groundSvg(playY, groundOffsetValues, keyTimes, duration),
     `<g>`,
-    `<animateTransform attributeName="transform" type="translate" from="0 0" to="-${worldShift} 0" dur="${T}s" repeatCount="indefinite"/>`
-  );
-  for (const p of pipes) parts.push(pipeSvg(p, c));
-  parts.push(`</g>`);
-
-  parts.push(
-    `<rect x="0" y="${GROUND_Y}" width="${W}" height="${H - GROUND_Y}" fill="${c.ground}"/>`,
-    `<rect x="0" y="${GROUND_Y}" width="${W}" height="7" fill="${c.grass}"/>`,
+    `<animateTransform attributeName="transform" type="translate" values="${sim.birdYs}" keyTimes="${keyTimes}" dur="${duration}s" repeatCount="indefinite" calcMode="linear"/>`,
     `<g>`,
-    `<animateTransform attributeName="transform" type="translate" from="0 0" to="-28 0" dur="${R(28 / SPEED)}s" repeatCount="indefinite"/>`
-  );
-  for (let x = -28; x < W + 56; x += 28) {
-    parts.push(
-      `<rect x="${x}" y="${GROUND_Y + 11}" width="14" height="9" fill="${c.groundStripe}" transform="skewX(-32)" transform-origin="${x} ${GROUND_Y + 11}"/>`
-    );
-  }
-  parts.push(`</g>`);
+    `<animateTransform attributeName="transform" type="rotate" values="${sim.birdRots}" keyTimes="${keyTimes}" dur="${duration}s" repeatCount="indefinite" calcMode="linear"/>`,
+    birdSvg(sim.birdR, uid),
+    `</g></g>`,
+    scoreSvg(gates, sim, sim.birdX),
+    `<text x="${W - 16}" y="${H - 10}" text-anchor="end" font-family="ui-monospace,monospace" font-size="10" letter-spacing="0.08em" fill="${theme.caption}">@${LOGIN} · ${total} contributions</text>`,
+    `</g></svg>`,
+  ];
 
-  parts.push(
-    `<g>`,
-    `<animateTransform attributeName="transform" type="translate" values="${bird.ys}" keyTimes="${bird.keyTimes}" dur="${T}s" repeatCount="indefinite" calcMode="linear"/>`,
-    `<g>`,
-    `<animateTransform attributeName="transform" type="rotate" values="${bird.rots}" keyTimes="${bird.keyTimes}" dur="${T}s" repeatCount="indefinite" calcMode="linear"/>`,
-    birdSvg(c),
-    `</g></g>`
-  );
-
-  const scoreTimes = pipes.map((p) => R(((p.x - BIRD_X) / SPEED) / T));
-  for (let i = 0; i < scoreTimes.length; i++) {
-    const begin = Math.min(0.999, Math.max(0.001, scoreTimes[i]));
-    const end = i + 1 < scoreTimes.length ? Math.min(0.9995, scoreTimes[i + 1]) : 1;
-    if (end <= begin) continue;
-    parts.push(
-      `<text x="${W / 2}" y="58" text-anchor="middle" font-family="Verdana,Geneva,sans-serif" font-size="42" font-weight="900" fill="${c.text}" stroke="${c.textStroke}" stroke-width="2" paint-order="stroke" opacity="0">${i + 1}` +
-        `<animate attributeName="opacity" values="0;1;0" keyTimes="0;${begin};${end}" calcMode="discrete" dur="${T}s" repeatCount="indefinite"/></text>`
-    );
-  }
-
-  parts.push(
-    `<text x="${W - 14}" y="${H - 12}" text-anchor="end" font-family="Verdana,Geneva,sans-serif" font-size="11" fill="${c.text}" opacity="0.8">@${LOGIN} · ${total} contributions</text>`,
-    `</g></svg>`
-  );
   return parts.join("\n");
 }
 
 (async () => {
   const { weeks, total } = await fetchWeeks();
-  const scene = buildScene(weeks);
+  const groundH = Math.max(26, Math.round(H * GROUND_RATIO));
+  const playY = H - groundH;
+  const gates = buildGates(weeks, playY);
+  const sim = simulate(gates, playY);
+
   const dist = path.join(process.cwd(), "dist");
   fs.mkdirSync(dist, { recursive: true });
-  for (const theme of ["light", "dark"]) {
-    const svg = render(theme, scene, total);
+
+  for (const theme of ["dark", "light"]) {
+    const svg = render(theme, gates, sim, total);
     fs.writeFileSync(path.join(dist, `flappy-${theme}.svg`), svg);
-    console.log(`dist/flappy-${theme}.svg (${(svg.length / 1024).toFixed(1)} KB)`);
+    console.log(`dist/flappy-${theme}.svg (${(svg.length / 1024).toFixed(1)} KB, ${sim.duration}s loop)`);
   }
 })().catch((e) => {
   console.error(e);
