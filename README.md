@@ -29,8 +29,8 @@ REST-приложения, бизнес-процессы, дашборды, ин
 |  | Что это | Стек |
 |---|---|---|
 | **[Synapsea Mail](https://mail.synapsea.agency)** | Транзакционная почта для рынка РФ (Resend-совместимый API, ФЗ-152) | Hono · Drizzle · BullMQ · Haraka · Next.js |
-| **[Synapsea Ads](https://ads.synapsea.agency)** | AI-платформа для маркетинга на MCP | MCP · Node.js · Redis |
-| **[Synapsea ID](https://auth.synapsea.agency)** | Единый аккаунт для сервисов Synapsea | SSO · Opaque tokens |
+| **[Synapsea Ads](https://ads.synapsea.agency)** | AI-платформа для маркетинга на MCP | Next.js · Hono · Drizzle · MCP · Redis |
+| **[Synapsea ID](https://auth.synapsea.agency)** | Единый аккаунт для сервисов Synapsea | Hono · Drizzle · OAuth · Next.js |
 
 ### Стек
 
@@ -43,11 +43,7 @@ REST-приложения, бизнес-процессы, дашборды, ин
 ### Статистика
 
 <p align="center">
-  <img src="https://github-readme-streak-stats-five-amber.vercel.app/?user=ShyDamn&theme=tokyonight&hide_border=true&background=00000000&locale=ru" height="170"/>
-</p>
-
-<p align="center">
-  <img src="https://github-readme-activity-graph.vercel.app/graph?username=ShyDamn&theme=tokyo-night&hide_border=true&area=true&custom_title=%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D1%81%D1%82%D1%8C" width="95%"/>
+  <img src="https://github-readme-streak-stats1-fkmv0744a-shydamns-projects.vercel.app/?user=ShyDamn&theme=tokyonight&hide_border=true&locale=ru" height="170"/>
 </p>
 
 <p align="center">
