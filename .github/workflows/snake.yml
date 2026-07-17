@@ -1,4 +1,4 @@
-name: generate flappy
+name: generate snake
 
 on:
   schedule:
@@ -15,17 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: Platane/snk/svg-only@v3
         with:
-          node-version: "20"
-
-      - name: Generate flappy SVG
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_LOGIN: ${{ github.repository_owner }}
-        run: node flappy.js
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/github-contribution-grid-snake.svg
+            dist/github-contribution-grid-snake-dark.svg?palette=github-dark
 
       - uses: crazy-max/ghaction-github-pages@v4
         with:

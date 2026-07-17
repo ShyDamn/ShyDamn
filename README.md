@@ -50,10 +50,9 @@ REST-приложения, бизнес-процессы, дашборды, ин
   <img src="https://github-readme-activity-graph.vercel.app/graph?username=ShyDamn&theme=tokyo-night&hide_border=true&area=true&custom_title=%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D1%81%D1%82%D1%8C" width="95%"/>
 </p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-light.svg">
-  <img alt="flappy bird contribution graph" src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-dark.svg" width="95%">
-</picture>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/github-contribution-grid-snake-dark.svg#gh-dark-mode-only" width="95%"/>
+  <img src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/github-contribution-grid-snake.svg#gh-light-mode-only" width="95%"/>
+</p>
 
 <img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:8B5CF6,50:4F46E5,100:0F1226&section=footer" width="100%"/>
