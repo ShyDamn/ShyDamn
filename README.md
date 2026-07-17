@@ -43,7 +43,7 @@ REST-приложения, бизнес-процессы, дашборды, ин
 ### Статистика
 
 <p align="center">
-  <img src="https://github-readme-streak-stats1-fkmv0744a-shydamns-projects.vercel.app/?user=ShyDamn&theme=tokyonight&hide_border=true&locale=ru" height="170"/>
+  <img src="https://github-readme-streak-stats1-fkmv0744a-shydamns-projects.vercel.app/?user=ShyDamn&theme=tokyonight&hide_border=true&locale=ru&v=2" height="170"/>
 </p>
 
 <p align="center">
