@@ -1,4 +1,4 @@
-<img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:0F1226,50:4F46E5,100:8B5CF6&text=Danila%20%2F%20ShyDamn&fontColor=ffffff&fontSize=48&fontAlignY=35&desc=Fullstack%20%C2%B7%20Bitrix24%20%C2%B7%20SaaS%20%C2%B7%20Co-founder%20%40%20Synapsea&descAlignY=55&descSize=18&animation=fadeIn" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&height=220&color=0:0F1226,50:4F46E5,100:8B5CF6&text=Danila%20%2F%20ShyDamn&fontColor=ffffff&fontSize=48&fontAlignY=35&desc=Fullstack%20%C2%B7%20Bitrix24%20%C2%B7%20SaaS%20%C2%B7%20Founder%20%40%20Synapsea&descAlignY=55&descSize=18&animation=fadeIn" width="100%"/>
 
 <p align="center">
   <a href="https://synapsea.agency">
@@ -18,7 +18,7 @@
 ### $ whoami
 
 ```text
-Фуллстек-разработчик и сооснователь агентства Synapsea.
+Фуллстек-разработчик и основатель агентства Synapsea.
 Половина времени — заказная разработка вокруг Bitrix24:
 REST-приложения, бизнес-процессы, дашборды, интеграции с 1С.
 Вторая половина — собственные продукты.
@@ -43,12 +43,17 @@ REST-приложения, бизнес-процессы, дашборды, ин
 ### Статистика
 
 <p align="center">
-  <img src="https://github-readme-activity-graph.vercel.app/graph?username=ShyDamn&theme=tokyo-night&hide_border=true&area=true&custom_title=%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D1%81%D1%82%D1%8C" width="95%"/>
+  <img src="https://github-readme-streak-stats-five-amber.vercel.app/?user=ShyDamn&theme=tokyonight&hide_border=true&background=00000000&locale=ru" height="170"/>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/github-contribution-grid-snake-dark.svg#gh-dark-mode-only" width="95%"/>
-  <img src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/github-contribution-grid-snake.svg#gh-light-mode-only" width="95%"/>
+  <img src="https://github-readme-activity-graph.vercel.app/graph?username=ShyDamn&theme=tokyo-night&hide_border=true&area=true&custom_title=%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D1%81%D1%82%D1%8C" width="95%"/>
 </p>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-light.svg">
+  <img alt="flappy bird contribution graph" src="https://raw.githubusercontent.com/ShyDamn/ShyDamn/output/flappy-dark.svg" width="95%">
+</picture>
 
 <img src="https://capsule-render.vercel.app/api?type=waving&height=120&color=0:8B5CF6,50:4F46E5,100:0F1226&section=footer" width="100%"/>
