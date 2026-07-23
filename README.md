@@ -28,9 +28,9 @@ REST-приложения, бизнес-процессы, дашборды, ин
 
 |  | Что это | Стек |
 |---|---|---|
-| **[Synapsea Mail](https://mail.synapsea.agency)** | Транзакционная почта для рынка РФ (Resend-совместимый API, ФЗ-152) | Hono · Drizzle · BullMQ · Haraka · Next.js |
-| **[Synapsea Ads](https://ads.synapsea.agency)** | AI-платформа для маркетинга на MCP | Next.js · Hono · Drizzle · MCP · Redis |
-| **[Synapsea ID](https://auth.synapsea.agency)** | Единый аккаунт для сервисов Synapsea | Hono · Drizzle · OAuth · Next.js |
+| **[Synapsea Mail](https://mail.synapsea.agency)** | Транзакционная почта для любого проекта | 5 строк до первого письма. Серверы в РФ. SPF/DKIM/DMARC за 2 минуты. |
+| **[Synapsea Ads](https://ads.synapsea.agency)** | Управление рекламой через AI-агентов | MCP-сервер для Яндекс Директа, Метрики, Вебмастера, Google Ads и VK. |
+| **[Synapsea ID](https://id.synapsea.agency)** | Единая авторизация для любого проекта | 19 провайдеров. 27 метода входа. 5 минут на интеграцию. |
 
 ### Стек
 
